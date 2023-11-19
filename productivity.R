@@ -1,7 +1,10 @@
+# load packages
+
 library(tidyverse)
 library(patchwork)
 library(zipfR)
-library(pbapply)
+
+
 
 # CQP query: 
 # cwb-scan-corpus CLMET lemma text_period >  "clmet_lemma_period.txt"
@@ -15,8 +18,6 @@ d <- read_delim("clmet_lemma_period.txt", delim = "\t", quote = "",
 # we replace all instances where the string consísts only
 # of punctuation
 d <- d[-grep("^[[:punct:]]+", d$lemma),]
-
-
 
 
 # find hapaxes
@@ -130,13 +131,25 @@ p1d <- ggplot(x, aes(x = a, y = b, label = "D")) + geom_text(size = 12) +
 
 # ggsave("productivities_baayen.png", width = 13, height = 13)
 
-setdiff(
-  d %>% filter(period == levels(factor(d$period))[1] & hood == TRUE) %>% select(lemma) %>% unlist %>% unname,
-  d %>% filter(period == levels(factor(d$period))[3] & hood == TRUE) %>% select(lemma) %>% unlist %>% unname
-)
 
-d %>% filter(period == levels(factor(d$period))[1]) %>% select(lemma) %>% unlist %>% unname
+d %>% filter(period == levels(factor(d$period))[1]) %>% 
+  select(lemma) %>% unlist %>% unname
 
+
+
+# new hood nouns vs new ness nouns ----------------------------------------
+
+# lemmas for each period
+lp01 <- filter(d, period == "1710-1780")$lemma %>% unique
+lp0102 <- filter(d, period %in% c("1710-1780", "1780-1850"))$lemma %>% unique
+lp02 <- filter(d, period == "1780-1850")$lemma %>% unique
+lp03 <- filter(d, period == "1850-1920")$lemma %>% unique
+
+# which -hood nouns in previous period
+setdiff(grep(".+hood$", lp02, value = T), grep(".+hood$", lp01, value = T))
+setdiff(grep(".+ness$", lp02, value = T), grep(".+ness$", lp01, value = T))
+setdiff(grep(".+hood$", lp03, value = T), grep(".+hood$", lp0102, value = T))
+setdiff(grep(".+ness$", lp03, value = T), grep(".+ness$", lp0102, value = T))
 
 
 # Zipf-Mandelbrot model ---------------------------------------------------
@@ -195,7 +208,6 @@ period02.vgc <- lnre.vgc(fzm02, 1:1e07, m.max = 1)
 period03.vgc <- lnre.vgc(fzm03, 1:1e07, m.max = 1)
 
 
-
 # get empirical vocabulary growth
 p01 <- readLines("clmet_hood_period01.txt")
 p01 <- gsub(".*<|>", "", p01)
@@ -246,56 +258,55 @@ period03.emp.vgc <- emp.vgc(p03)
 
 # plot growth curves ------------------------------------------------------
 
-
-
 # empirical vocabulary growth for -hood
 plot(period01.emp.vgc$N, period01.emp.vgc$V1, type = "l", 
-     col = "blue", lwd = 2, ylim = c(0, 10000), xlim = c(0, 100000))
+     lty = 1, lwd = 2, ylim = c(0, 10000), xlim = c(0, 100000))
 
 lines(period01.vgc$N, period01.vgc$V1 / period01.vgc$N, type = "l", lty = 2, 
-      col = "blue", lwd = 2)
+       lwd = 2)
 
 # plot vocabulary growth curve
-png("growthcurves.png", width = 13, height = 5, un = "in", res = 300)
-par(mfrow = c(1,2))
+ # png("growthcurves_bw.png", width = 13, height = 5, un = "in", res = 300)
+ par(mfrow = c(1,2))
 
-# png("vocgrowthcurve.png", width = 6.5, height = 5, un = "in", res = 300)
-plot(period01.vgc$N, period01.vgc$V, type="l", col="blue", 
+# png("vocgrowthcurve_bw.png", width = 6.5, height = 5, un = "in", res = 300)
+plot(period01.vgc$N, period01.vgc$V, type="l", lty = 1, col="grey10",
      lwd=2, main="Vocabulary Growth Curve",
      ylab="Extrapolated number of types", xlab="N", ylim = c(0,2e05))
-points(period01.emp.vgc$N, period01.emp.vgc$V1, pch=10, col="blue", cex=0.5)
-lines(period02.vgc$N, period02.vgc$V, type="l", col="red", lwd=2)
-points(period02.emp.vgc$N, period02.emp.vgc$V1, pch=10, col="red", cex=0.5)
-lines(period03.vgc$N, period03.vgc$V, type="l", col="green", lwd=3)
-points(period03.emp.vgc$N, period03.emp.vgc$V1, pch=10, col="green", cex=0.5)
+points(period01.emp.vgc$N, period01.emp.vgc$V1, pch=10, col="grey10",
+       cex=0.5)
+lines(period02.vgc$N, period02.vgc$V, type="l", col="grey50", lty=2)
+points(period02.emp.vgc$N, period02.emp.vgc$V1, pch=10, col="grey50", cex=0.5)
+lines(period03.vgc$N, period03.vgc$V, type="l", col="grey80", lty=3)
+points(period03.emp.vgc$N, period03.emp.vgc$V1, pch=10, col="grey80", cex=0.5)
 legend("topleft", 
        inset=c(0.01,0.01), 
        lty=c(1,2,3), 
-       col=c("blue", "red", "green"), 
+       col=c("grey10", "grey50", "grey80"), 
        legend=c(levels(factor(d$period))[1],
                 levels(factor(d$period))[2],
                 levels(factor(d$period))[3]), cex=0.6)
-#dev.off()
+# dev.off()
 
 
 # hapax growth curve
 #png("growthcurve.png", width = 6.5, height = 5, un = "in", res = 300)
-plot(period01.vgc$N, period01.vgc$V1, type="l", col="blue", 
+plot(period01.vgc$N, period01.vgc$V1, type="l", col="grey10", 
      lwd=2, main="Hapax Growth Curve",
      ylab="Extrapolated number of hapaxes", xlab="N")
-lines(period02.vgc$N, period02.vgc$V1, type="l", col="red", lwd=2)
-lines(period03.vgc$N, period03.vgc$V1, type="l", col="green", lwd=3)
+lines(period02.vgc$N, period02.vgc$V1, type="l", col="grey50", lty=2)
+lines(period03.vgc$N, period03.vgc$V1, type="l", col="grey80", lty=3)
 
 legend("topleft", 
        inset=c(0.01,0.01), 
        lty=c(1,2,3), 
-       col=c("blue", "red", "green"), 
+       col=c("grey10", "grey50", "grey80"), 
        legend=c(levels(factor(d$period))[1],
                 levels(factor(d$period))[2],
                 levels(factor(d$period))[3]), cex=0.6)
 
-dev.off()
-
+# dev.off()
+par(mfrow = c(1,1))
 
 
 
@@ -315,153 +326,167 @@ d <- read_delim("clmet_lemma_id_period.txt", delim = "\t",
 d$hood <- grepl(".+hood$", d$Lemma)
 
 
-# set seed to make results reproducible
-set.seed(1985)
-
-# container for results
-container <- list()
-
-# steps of 1000
-seqs <- seq(0, nrow(d), 10000)
-
-for(i in 1:5000) {
-  # randomly shuffle texts
-  d$text <- factor(d$text, levels = sample(unique(d$text), length(unique(d$text))))
-  d <- d %>% arrange(text)
-  
-  
-  # add duplicate column so that only first instances
-  # (types) are considered
-  d$duplicated <- duplicated(d$Lemma)
-  
-  # add column with counter
-  d$counter <- NA
-  d[which(d$duplicated == FALSE & d$hood == TRUE),]$counter <- 1:nrow(d[which(d$duplicated == FALSE & d$hood == TRUE),])
-  d <- fill(d, counter) # fill downwards
-  container[[i]] <- d[seqs,]$counter
-  
-  # # add duplicate column so that only first instances
-  # # (types) are considered
-  # d$duplicated <- duplicated(d$Lemma)
-  # 
-  # 
-  # 
-  # # add index, then only keep -hood instances
-  # d$index <- 1:nrow(d)
-  # d1 <- filter(d, hood == TRUE & duplicated == FALSE)
-  # 
-  # # for each step, get number of types
-  # container[[i]] <- sapply(1:length(seqs), function(j) nrow(d1[which(d1$index<seqs[j]),]))
-  # 
-  print(i)
-}
-
-# and now the same but for individual time slices
-
-# container for results
-container1 <- list()
-container2 <- list()
-container3 <- list()
-
-# new seqs based on the smallest time period
-seqs <- seq(0, 468975, 10000)
-
-# set seed
-set.seed(1985)
-
-for(i in 1:5000) {
-  # randomly shuffle texts
-  d$text <- factor(d$text, levels = sample(unique(d$text), length(unique(d$text))))
-  d <- d %>% arrange(text)
-  
-  d1 <- filter(d, Period == "1710-1780")
-  d2 <- filter(d, Period == "1780-1850")
-  d3 <- filter(d, Period == "1850-1920")
-  
-  # add duplicate column so that only first instances
-  # (types) are considered
-  d1$duplicated <- duplicated(d1$Lemma)
-  d2$duplicated <- duplicated(d2$Lemma)
-  d3$duplicated <- duplicated(d3$Lemma)
-  
-  # add column with counter
-  d1$counter <- NA
-  d1[which(d1$duplicated == FALSE & d1$hood == TRUE),]$counter <- 1:nrow(d1[which(d1$duplicated == FALSE & d1$hood == TRUE),])
-  d1 <- fill(d1, counter) # fill downwards
-  container1[[i]] <- d1[seqs,]$counter
-  
-  d2$counter <- NA
-  d2[which(d2$duplicated == FALSE & d2$hood == TRUE),]$counter <- 1:nrow(d2[which(d2$duplicated == FALSE & d2$hood == TRUE),])
-  d2 <- fill(d2, counter) # fill downwards
-  container2[[i]] <- d2[seqs,]$counter
-  
-  d3$counter <- NA
-  d3[which(d3$duplicated == FALSE & d3$hood == TRUE),]$counter <- 1:nrow(d3[which(d3$duplicated == FALSE & d3$hood == TRUE),])
-  d3 <- fill(d3, counter) # fill downwards
-  container3[[i]] <- d3[seqs,]$counter
-  
-  # # add duplicate column so that only first instances
-  # # (types) are considered
-  # d$duplicated <- duplicated(d$Lemma)
-  # 
-  # 
-  # 
-  # # add index, then only keep -hood instances
-  # d$index <- 1:nrow(d)
-  # d1 <- filter(d, hood == TRUE & duplicated == FALSE)
-  # 
-  # # for each step, get number of types
-  # container[[i]] <- sapply(1:length(seqs), function(j) nrow(d1[which(d1$index<seqs[j]),]))
-  # 
-  print(i)
-}
-
+# # set seed to make results reproducible
+# set.seed(1985)
+# 
+# # container for results
+# container <- list()
+# 
+# # steps of 1000
+# seqs <- seq(0, nrow(d), 10000)
+# 
+# for(i in 1:5000) {
+#   # randomly shuffle texts
+#   d$text <- factor(d$text, levels = sample(unique(d$text), length(unique(d$text))))
+#   d <- d %>% arrange(text)
+#   
+#   
+#   # add duplicate column so that only first instances
+#   # (types) are considered
+#   d$duplicated <- duplicated(d$Lemma)
+#   
+#   # add column with counter
+#   d$counter <- NA
+#   d[which(d$duplicated == FALSE & d$hood == TRUE),]$counter <- 1:nrow(d[which(d$duplicated == FALSE & d$hood == TRUE),])
+#   d <- fill(d, counter) # fill downwards
+#   container[[i]] <- d[seqs,]$counter
+#   
+#   # # add duplicate column so that only first instances
+#   # # (types) are considered
+#   # d$duplicated <- duplicated(d$Lemma)
+#   # 
+#   # 
+#   # 
+#   # # add index, then only keep -hood instances
+#   # d$index <- 1:nrow(d)
+#   # d1 <- filter(d, hood == TRUE & duplicated == FALSE)
+#   # 
+#   # # for each step, get number of types
+#   # container[[i]] <- sapply(1:length(seqs), function(j) nrow(d1[which(d1$index<seqs[j]),]))
+#   # 
+#   print(i)
+# }
+# 
+# # and now the same but for individual time slices
+# 
+# # container for results
+# container1 <- list()
+# container2 <- list()
+# container3 <- list()
+# 
+# # new seqs based on the smallest time period
+# seqs <- seq(0, 468975, 10000)
+# 
+# # set seed
+# set.seed(1985)
+# 
+# for(i in 1:5000) {
+#   # randomly shuffle texts
+#   d$text <- factor(d$text, levels = sample(unique(d$text), length(unique(d$text))))
+#   d <- d %>% arrange(text)
+#   
+#   d1 <- filter(d, Period == "1710-1780")
+#   d2 <- filter(d, Period == "1780-1850")
+#   d3 <- filter(d, Period == "1850-1920")
+#   
+#   # add duplicate column so that only first instances
+#   # (types) are considered
+#   d1$duplicated <- duplicated(d1$Lemma)
+#   d2$duplicated <- duplicated(d2$Lemma)
+#   d3$duplicated <- duplicated(d3$Lemma)
+#   
+#   # add column with counter
+#   d1$counter <- NA
+#   d1[which(d1$duplicated == FALSE & d1$hood == TRUE),]$counter <- 1:nrow(d1[which(d1$duplicated == FALSE & d1$hood == TRUE),])
+#   d1 <- fill(d1, counter) # fill downwards
+#   container1[[i]] <- d1[seqs,]$counter
+#   
+#   d2$counter <- NA
+#   d2[which(d2$duplicated == FALSE & d2$hood == TRUE),]$counter <- 1:nrow(d2[which(d2$duplicated == FALSE & d2$hood == TRUE),])
+#   d2 <- fill(d2, counter) # fill downwards
+#   container2[[i]] <- d2[seqs,]$counter
+#   
+#   d3$counter <- NA
+#   d3[which(d3$duplicated == FALSE & d3$hood == TRUE),]$counter <- 1:nrow(d3[which(d3$duplicated == FALSE & d3$hood == TRUE),])
+#   d3 <- fill(d3, counter) # fill downwards
+#   container3[[i]] <- d3[seqs,]$counter
+#   
+#   # # add duplicate column so that only first instances
+#   # # (types) are considered
+#   # d$duplicated <- duplicated(d$Lemma)
+#   # 
+#   # 
+#   # 
+#   # # add index, then only keep -hood instances
+#   # d$index <- 1:nrow(d)
+#   # d1 <- filter(d, hood == TRUE & duplicated == FALSE)
+#   # 
+#   # # for each step, get number of types
+#   # container[[i]] <- sapply(1:length(seqs), function(j) nrow(d1[which(d1$index<seqs[j]),]))
+#   # 
+#   print(i)
+# }
+# 
 
 
 # export bootstrapping results
-write_rds(d1, "d1.Rds")
-write_rds(d2, "d2.Rds")
-write_rds(d3, "d3.Rds")
+# write_rds(d1, "d1.Rds")
+# write_rds(d2, "d2.Rds")
+# write_rds(d3, "d3.Rds")
 
+# write_rds(container1, "container1.Rds")
+# write_rds(container2, "container2.Rds")
+# write_rds(container3, "container3.Rds")
 
-# png("säily01.png", width = 6.5, height = 5, un = "in", res = 300)
+container1 <- read_rds("container1.Rds")
+container2 <- read_rds("container2.Rds")
+container3 <- read_rds("container3.Rds")
+
+png("säily_triptychon_bw.png", width = 15, height = 5, un = "in", res = 300)
+par(mfrow = c(1,3))
 plot(seqs[1:length(container[[1]])], container[[1]], type = "n", 
      ylab = "Types", xlab = "Running words", xlim = c(0,4e05))
 sapply(1:length(container1), function(i) 
-  lines(seqs[1:length(container1[[1]])], container1[[i]], col = rgb(red = 0, blue = 1, green = 0, alpha = .1)))
+  lines(seqs[1:length(container1[[1]])], 
+        container1[[i]], 
+        col = alpha("grey50", 0.009)))
+lines(seqs[1:length(container1[[1]])], 
+      sapply(1:length(container1[[1]]), 
+             function(j) mean(sapply(1:length(container1), 
+                                     function(i) container1[[i]][j]))),
+      col = "grey10", lwd = 2)
+title(levels(factor(d$Period))[1])
+
+plot(seqs[1:length(container[[1]])], container[[1]], type = "n", 
+     ylab = "Types", xlab = "Running words", xlim = c(0,4e05))
 sapply(1:length(container2), function(i) 
-  lines(seqs[1:length(container2[[1]])], container2[[i]], col = rgb(red = 1, blue = 0, green = 0, alpha = .6)))
+  lines(seqs[1:length(container2[[1]])], container2[[i]], 
+        col = alpha("grey50", 0.009)))
+lines(seqs[1:length(container2[[1]])], 
+      sapply(1:length(container2[[1]]), 
+             function(j) mean(sapply(1:length(container2), 
+                                     function(i) container2[[i]][j]))),
+      col = "grey10", lwd = 2)
+title(levels(factor(d$Period))[2])
+
+plot(seqs[1:length(container[[1]])], container[[1]], type = "n", 
+     ylab = "Types", xlab = "Running words", xlim = c(0,4e05))
 sapply(1:length(container3), function(i) 
-  lines(seqs[1:length(container3[[1]])], container3[[i]], col = rgb(red = 0, blue = 0, green = 1, alpha = .4)))
-title("-hood, CLMET")
-legend("topleft", 
-       inset=c(0.01,0.01), 
-       col=c("blue", "red", "green"), lty = 1, lwd = 2,
-       legend=c(levels(factor(d$Period))[1],
-                levels(factor(d$Period))[2],
-                levels(factor(d$Period))[3]), cex=0.6)
+  lines(seqs[1:length(container3[[1]])], container3[[i]], 
+        col = alpha("grey50", 0.009)))
+lines(seqs[1:length(container3[[1]])], 
+      sapply(1:length(container3[[1]]), 
+             function(j) mean(sapply(1:length(container3), 
+                                     function(i) container3[[i]][j]))),
+      col = "grey10", lwd = 3)
+title(levels(factor(d$Period))[3])
+# legend("topleft", 
+#        inset=c(0.01,0.01), 
+#        col=c("blue", "red", "green"), lty = 1, lwd = 2,
+#        legend=c(levels(factor(d$Period))[1],
+#                 levels(factor(d$Period))[2],
+#                 levels(factor(d$Period))[3]), cex=0.6)
 
-# dev.off()
-
-# randomly shuffle texts
-text_ids <- unique(d$text)
-d$text <- factor(d$text, levels = sample(text_ids, length(text_ids)))
-d <- d %>% arrange(text)
-
-# add duplicate column so that only first instances
-# (types) are considered
-d$duplicated <- duplicated(d$Lemma)
-
-# find new -hood types
-d$hood <- grepl(".+hood$", d$Lemma)
-
-# steps of 1000
-seqs <- seq(0, nrow(d), 1000)
-
-# add index, then only keep -hood instances
-d$index <- 1:nrow(d)
-d1 <- filter(d, hood == TRUE & duplicated == FALSE)
-
-# for each step, get number of types
-sapply(1:length(seqs), function(i) nrow(d1[which(d1$index<seqs[i]),]))
+dev.off()
+par(mfrow = c(1,1))
 
